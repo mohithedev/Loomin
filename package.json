@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "prebuild": "rimraf .next dist tsconfig.tsbuildinfo",
-    "build": "next build && rimraf dist && mv out dist",
+    "build": "next build",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
