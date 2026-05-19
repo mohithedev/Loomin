@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../services/auth';
 import { motion } from 'framer-motion';
-import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Moon, Zap, PlusCircle, Menu, X } from 'lucide-react';
+import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Zap, PlusCircle, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { getRemainingPlaylists } from '../services/plans';
 
@@ -158,33 +158,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 </p>
               </div>
 
-              {/* Right - Theme, Upgrade, Create */}
+              {/* Right - Create Button */}
               <div className="flex items-center gap-4">
-                {/* Theme Button */}
-                <button
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors cursor-pointer text-secondary text-xs font-semibold flex items-center gap-1 border border-primary hover:border-accent"
-                  title="Switch Theme"
-                >
-                  <Moon className="w-4 h-4" />
-                  <span className="hidden sm:inline capitalize">Dark</span>
-                </button>
-
-                {/* Upgrade Button - Only for Free users */}
-                {user.plan === 'free' && (
-                  <button
-                    onClick={() => {
-                      const pricingSection = document.getElementById('pricing');
-                      if (pricingSection) {
-                        window.location.href = '/#pricing';
-                      }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all border border-accent"
-                  >
-                    <Zap className="w-4 h-4" />
-                    Upgrade to Pro
-                  </button>
-                )}
-
                 {/* Create Button */}
                 <button className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all border border-accent">
                   <PlusCircle className="w-4 h-4" />

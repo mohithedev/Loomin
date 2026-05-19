@@ -137,12 +137,14 @@ export default function Home() {
     }
   };
 
+  if (showDashboard && userLoggedIn && !activeCourse) {
+    return <Dashboard onLogout={handleLogout} />;
+  }
+
   return (
     <Layout onLogin={() => setIsLoginModalOpen(true)} onLogout={handleLogout} isLoggedIn={userLoggedIn}>
       <AnimatePresence mode="wait">
-        {showDashboard && userLoggedIn && !activeCourse ? (
-          <Dashboard key="dashboard" onLogout={handleLogout} />
-        ) : !activeCourse ? (
+        {!activeCourse ? (
           <motion.div
             key="landing"
             initial={{ opacity: 0 }}
