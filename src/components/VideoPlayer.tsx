@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import Image from 'next/image';
-import { Loader2, Play, CheckCircle2, Lock, ChevronRight, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Lock, ChevronRight, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Course, UserProgress } from '../types';
 import { clsx, type ClassValue } from 'clsx';

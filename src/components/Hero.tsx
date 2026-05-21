@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Youtube, Search, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Youtube, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { extractPlaylistId, fetchPlaylistData } from '../services/youtube';
 import { Course } from '../types';
