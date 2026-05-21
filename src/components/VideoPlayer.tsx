@@ -20,6 +20,8 @@ interface VideoPlayerProps {
   onVideoComplete: (videoId: string) => void;
   onVideoSelect: (videoId: string) => void;
   currentVideoId: string;
+  isLoggedIn?: boolean;
+  onLoginRequired?: () => void;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -28,10 +30,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onVideoComplete,
   onVideoSelect,
   currentVideoId,
+  isLoggedIn = false,
+  onLoginRequired = () => {},
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0); // Track video watch percentage
+  const [showWatchWarning, setShowWatchWarning] = useState(false); // Show warning modal
 
   const currentVideo = course.videos.find(v => v.id === currentVideoId) || course.videos[0];
   const currentIndex = course.videos.findIndex(v => v.id === currentVideoId);
@@ -47,6 +53,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setPlayer(event.target);
     setLoading(false);
   };
+
+  // Track video progress every second
+  useEffect(() => {
+    if (!player || loading) return;
+
+    const interval = setInterval(() => {
+      const currentTime = player.getCurrentTime();
+      const duration = player.getDuration();
+      if (duration > 0) {
+        const progress = (currentTime / duration) * 100;
+        setVideoProgress(Math.min(progress, 100));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [player, loading]);
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
     if (event.data === 0) {
@@ -117,23 +139,49 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           {/* Bottom Navigation - Previous/Next Buttons */}
-          <div className="flex items-center justify-between pt-4">
-            <button
-              disabled={currentIndex === 0}
-              onClick={() => onVideoSelect(course.videos[currentIndex - 1].id)}
-              className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg transition-all font-semibold disabled:hover:bg-accent"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              <span>Previous</span>
-            </button>
-            <button
-              disabled={currentIndex === course.videos.length - 1 || !isVideoUnlocked(course.videos[currentIndex + 1].id)}
-              onClick={() => onVideoSelect(course.videos[currentIndex + 1].id)}
-              className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg transition-all font-semibold disabled:hover:bg-accent"
-            >
-              <span>Next</span>
-              <ChevronRight className="w-5 h-5" />
-            </button>
+          <div className="flex items-center justify-between pt-4 flex-col gap-4">
+            <div className="flex items-center justify-between w-full">
+              <button
+                disabled={currentIndex === 0}
+                onClick={() => onVideoSelect(course.videos[currentIndex - 1].id)}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg transition-all font-semibold disabled:hover:bg-accent"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span>Previous</span>
+              </button>
+              <button
+                disabled={currentIndex === course.videos.length - 1}
+                onClick={() => {
+                  // Check if user watched at least 60%
+                  if (videoProgress < 60 && currentIndex < course.videos.length - 1) {
+                    setShowWatchWarning(true);
+                    return;
+                  }
+                  
+                  // For guests, show login modal when clicking next
+                  if (!isLoggedIn && !isVideoUnlocked(course.videos[currentIndex + 1].id)) {
+                    onLoginRequired();
+                    return;
+                  }
+                  // Mark current video as completed when moving to next
+                  if (!progress.completedVideoIds.includes(currentVideoId)) {
+                    onVideoComplete(currentVideoId);
+                  }
+                  setVideoProgress(0); // Reset progress for next video
+                  onVideoSelect(course.videos[currentIndex + 1].id);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg transition-all font-semibold disabled:hover:bg-accent"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-500"
+                style={{ width: `${videoProgress}%` }}
+              />
+            </div>
           </div>
 
           <GeminiAnalysis 
@@ -231,6 +279,52 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 );
               })}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Watch Progress Warning Modal */}
+      <AnimatePresence>
+        {showWatchWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
+            onClick={() => setShowWatchWarning(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-primary border border-primary rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl space-y-6"
+            >
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold tracking-tight">Keep Watching!</h2>
+                <p className="text-secondary">
+                  You need to watch at least <span className="font-bold text-accent">60%</span> of the video before moving to the next one.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm text-secondary">Current Progress</p>
+                <div className="w-full h-3 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-500"
+                    style={{ width: `${videoProgress}%` }}
+                  />
+                </div>
+                <p className="text-center text-sm font-bold text-accent">{Math.round(videoProgress)}%</p>
+              </div>
+
+              <button
+                onClick={() => setShowWatchWarning(false)}
+                className="w-full px-6 py-3 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all"
+              >
+                Continue Watching
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

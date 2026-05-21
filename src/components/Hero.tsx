@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Search, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Youtube, Search, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { extractPlaylistId, fetchPlaylistData } from '../services/youtube';
 import { Course } from '../types';
@@ -63,7 +63,7 @@ export const Hero: React.FC<{ onCoursePreview: (course: Partial<Course>) => void
         >
           <div className="relative flex items-center">
             <div className="absolute left-4 text-secondary">
-              <Search className="w-5 h-5" />
+              <Youtube className="w-5 h-5" />
             </div>
             <input
               type="text"

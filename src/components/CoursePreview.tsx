@@ -27,26 +27,26 @@ export const CoursePreview: React.FC<CoursePreviewProps> = ({ course, onStart })
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="max-w-4xl mx-auto mt-12 bg-secondary/50 border border-primary rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm"
+      className="max-w-4xl mx-auto mt-8 bg-secondary/50 border border-primary rounded-2xl overflow-hidden shadow-lg backdrop-blur-sm"
     >
-      <div className="flex flex-col md:flex-row">
-        <div className="w-full md:w-1/3 aspect-video md:aspect-auto relative">
+      <div className="flex flex-col">
+        <div className="w-full aspect-video relative">
           <Image
             src={course.thumbnail || ''}
             alt={course.title || ''}
             fill
-            className="object-cover"
+            className="object-cover w-full h-full"
             referrerPolicy="no-referrer"
           />
         </div>
         
-        <div className="flex-1 p-8 space-y-6">
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">{course.title}</h2>
-            <p className="text-secondary line-clamp-2">{course.description}</p>
+        <div className="p-6 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">{course.title}</h2>
+            <p className="text-secondary text-sm line-clamp-2">{course.description}</p>
           </div>
 
-          <div className="flex flex-wrap gap-6 text-sm font-medium text-secondary">
+          <div className="flex flex-wrap gap-4 text-xs font-medium text-secondary">
             <div className="flex items-center gap-2">
               <List className="w-4 h-4 text-accent" />
               <span>{course.videos?.length} Videos</span>
@@ -103,7 +103,7 @@ export const CoursePreview: React.FC<CoursePreviewProps> = ({ course, onStart })
                 </button>
               </div>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
               {sortedVideos.map((video, idx) => (
                 <div
                   key={video.id}

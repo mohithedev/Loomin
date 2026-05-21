@@ -337,6 +337,8 @@ export default function Home() {
                 currentVideoId={currentVideoId}
                 onVideoComplete={handleVideoComplete}
                 onVideoSelect={setCurrentVideoId}
+                isLoggedIn={userLoggedIn}
+                onLoginRequired={() => setIsLoginModalOpen(true)}
               />
             )}
           </motion.div>
