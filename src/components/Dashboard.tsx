@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../services/auth';
 import { motion } from 'framer-motion';
-import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Zap, PlusCircle, Menu, X } from 'lucide-react';
+import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Zap, PlusCircle, Menu, X, Moon, Sun, Star } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { ThemeMode } from '../types';
 import Link from 'next/link';
 import { getRemainingPlaylists } from '../services/plans';
 
@@ -16,6 +18,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [courses, setCourses] = useState<any[]>([]);
   const [activeNav, setActiveNav] = useState<'all' | 'in-progress' | 'completed'>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  const nextTheme: Record<ThemeMode, ThemeMode> = {
+    light: 'dark',
+    dark: 'midnight',
+    midnight: 'light',
+  };
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -64,7 +73,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   return (
     <div className="flex min-h-screen bg-primary">
       {/* Sidebar */}
-      <div className="w-64 bg-primary/50 border-r border-primary/30 fixed left-0 top-0 h-screen flex flex-col p-6 space-y-8 pt-20">
+      <div className="w-64 bg-primary/50 border-r border-primary/30 fixed left-0 top-0 h-screen flex flex-col p-6 space-y-8 pt-6">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 cursor-pointer group hover:opacity-80 transition-opacity mb-4">
+          <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+            <LayoutIcon className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tight">Loomin</span>
+        </Link>
+
         {/* Navigation */}
         <nav className="space-y-2 flex-1">
           <button
@@ -118,6 +135,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             {!user?.image && <div className="w-5 h-5 rounded-full bg-accent/30 flex items-center justify-center text-xs">{user?.name?.charAt(0)}</div>}
             <span>{user?.name}</span>
           </button>
+
+          {/* Theme Button */}
+          <button
+            onClick={() => setTheme(nextTheme[theme])}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-secondary hover:text-primary hover:bg-secondary/20 transition-colors text-sm font-medium"
+            title="Switch Theme"
+          >
+            {theme === 'dark' && <Moon className="w-4 h-4" />}
+            {theme === 'light' && <Sun className="w-4 h-4" />}
+            {theme === 'midnight' && <Star className="w-4 h-4" />}
+            <span className="capitalize">{theme}</span>
+          </button>
+
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-secondary hover:text-primary transition-colors text-sm font-medium"
@@ -158,8 +188,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 </p>
               </div>
 
-              {/* Right - Create Button */}
+              {/* Right - Create & Upgrade Buttons */}
               <div className="flex items-center gap-4">
+                {/* Upgrade Button - Only for Free users */}
+                {user.plan === 'free' && (
+                  <button
+                    onClick={() => {
+                      window.location.href = '/#pricing';
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-primary rounded-lg font-semibold transition-all border border-primary hover:border-accent"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Upgrade
+                  </button>
+                )}
+
                 {/* Create Button */}
                 <button className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all border border-accent">
                   <PlusCircle className="w-4 h-4" />
