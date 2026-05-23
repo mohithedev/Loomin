@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- Courses table
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
   thumbnail TEXT,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS videos (
 -- User progress table
 CREATE TABLE IF NOT EXISTS user_progress (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   completed_video_ids TEXT[] DEFAULT '{}',
   watch_progress JSONB DEFAULT '{}',
@@ -56,6 +56,9 @@ ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
 -- RLS Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON profiles
   FOR SELECT USING (true);
+
+CREATE POLICY "Users can create their own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
