@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { X, Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { X, Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { login, signUp, googleLogin, ssoLogin, requestPasswordReset } from '../services/auth';
+import { supabaseSignUp, supabaseLogin, supabaseGoogleLogin } from '../lib/supabaseAuth';
 import { supabase } from '../lib/supabase';
 
 interface LoginModalProps {
@@ -34,44 +34,61 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
 
     try {
       if (isLogin) {
-        const result = login(email, password);
+        const result = await supabaseLogin(email, password);
         if (result.success) {
-          setMessage({ type: 'success', text: result.message });
-          setTimeout(() => {
-            onSuccess?.();
-            onClose();
-            resetForm();
-          }, 1000);
-        } else {
-          setMessage({ type: 'error', text: result.message });
-        }
-      } else {
-        const result = signUp(email, name, password);
-        if (result.success && result.user) {
-          // Create Supabase profile for new user
-          try {
-            await supabase
+          setMessage({ type: 'success', text: 'Login successful!' });
+          
+          // Create profile if it doesn't exist
+          if (result.user) {
+            const { data: existingProfile } = await supabase
               .from('profiles')
-              .insert([
-                {
-                  id: result.user.id,
-                  username: email.split('@')[0],
-                  full_name: name,
-                },
-              ]);
-          } catch (supabaseError) {
-            console.error('Error creating Supabase profile:', supabaseError);
-            // Continue even if profile creation fails
+              .select('*')
+              .eq('id', result.user.id)
+              .single();
+
+            if (!existingProfile) {
+              await supabase
+                .from('profiles')
+                .insert([
+                  {
+                    id: result.user.id,
+                    username: email.split('@')[0],
+                    full_name: result.user.user_metadata?.full_name || '',
+                  },
+                ]);
+            }
           }
 
-          setMessage({ type: 'success', text: result.message });
           setTimeout(() => {
             onSuccess?.();
             onClose();
             resetForm();
           }, 1000);
         } else {
-          setMessage({ type: 'error', text: result.message });
+          setMessage({ type: 'error', text: result.error || 'Login failed' });
+        }
+      } else {
+        const result = await supabaseSignUp(email, password, name);
+        if (result.success && result.user) {
+          // Create profile for new user
+          await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: result.user.id,
+                username: email.split('@')[0],
+                full_name: name,
+              },
+            ]);
+
+          setMessage({ type: 'success', text: 'Account created! Please check your email to confirm.' });
+          setTimeout(() => {
+            onSuccess?.();
+            onClose();
+            resetForm();
+          }, 1500);
+        } else {
+          setMessage({ type: 'error', text: result.error || 'Signup failed' });
         }
       }
     } finally {
@@ -83,44 +100,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
     setLoading(true);
     setMessage(null);
     try {
-      // Mock Google login - in production, use actual Google OAuth
-      const mockGoogleEmail = `user-${Date.now()}@gmail.com`;
-      const mockGoogleName = 'Google User';
-      
-      const result = googleLogin(mockGoogleEmail, mockGoogleName);
+      const result = await supabaseGoogleLogin();
       if (result.success) {
-        setMessage({ type: 'success', text: 'Google login successful' });
-        setTimeout(() => {
-          onSuccess?.();
-          onClose();
-          resetForm();
-        }, 1000);
+        // Google OAuth will redirect to callback URL
+        // No need to close modal here
       } else {
-        setMessage({ type: 'error', text: result.message });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSSOLogin = async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      // Mock SSO login - in production, use actual SSO provider
-      const mockSSOEmail = `sso-${Date.now()}@company.com`;
-      const mockSSOName = 'SSO User';
-      
-      const result = ssoLogin(mockSSOEmail, mockSSOName);
-      if (result.success) {
-        setMessage({ type: 'success', text: 'SSO login successful' });
-        setTimeout(() => {
-          onSuccess?.();
-          onClose();
-          resetForm();
-        }, 1000);
-      } else {
-        setMessage({ type: 'error', text: result.message });
+        setMessage({ type: 'error', text: result.error || 'Google login failed' });
       }
     } finally {
       setLoading(false);
@@ -136,19 +121,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
 
     setLoading(true);
     try {
-      const result = requestPasswordReset(email);
-      if (result.success) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
+      });
+
+      if (error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
         setShowResetSent(true);
-        setMessage({ type: 'success', text: result.message });
+        setMessage({ type: 'success', text: 'Password reset email sent. Check your inbox!' });
         setTimeout(() => {
           setShowResetSent(false);
           setShowForgotPassword(false);
           setEmail('');
           setMessage(null);
         }, 3000);
-      } else {
-        setMessage({ type: 'error', text: result.message });
       }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to reset password' });
     } finally {
       setLoading(false);
     }
@@ -275,14 +265,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                       className="group-hover:rotate-12 transition-transform" 
                     />
                     <span>Continue with Google</span>
-                  </button>
-                  <button 
-                    onClick={handleSSOLogin}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-primary rounded-xl hover:bg-secondary hover:border-accent hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer font-medium text-sm group disabled:opacity-50"
-                  >
-                    <Lock className="w-4 h-4 text-secondary group-hover:text-accent transition-colors" />
-                    <span>Continue with SSO</span>
                   </button>
                 </div>
 
