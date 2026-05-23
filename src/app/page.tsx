@@ -13,6 +13,8 @@ import { Course, UserProgress } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isLoggedIn, getCurrentUser, logout } from '../services/auth';
 import { canCreatePlaylist } from '../services/plans';
+import { createCourse, createVideos, getUserProgress, markVideoComplete } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 export default function Home() {
   const [coursePreview, setCoursePreview] = useState<Partial<Course> | null>(null);
@@ -57,7 +59,7 @@ export default function Home() {
     }, 100);
   };
 
-  const handleStartCourse = () => {
+  const handleStartCourse = async () => {
     if (!coursePreview || !coursePreview.videos) return;
     
     // Check plan limits if user is logged in
@@ -91,7 +93,36 @@ export default function Home() {
       lastUpdated: Date.now(),
     };
 
-    // Save course to user's profile if logged in
+    // Save course to Supabase if logged in
+    if (userLoggedIn) {
+      try {
+        const user = getCurrentUser();
+        if (user) {
+          // Get Supabase user ID from auth
+          const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+          
+          if (supabaseUser) {
+            // Create course in Supabase
+            const dbCourse = await createCourse(supabaseUser.id, {
+              title: newCourse.title,
+              description: newCourse.description,
+              thumbnail: newCourse.thumbnail,
+              playlistId: newCourse.playlistId,
+            });
+
+            // Save videos to Supabase
+            if (dbCourse) {
+              await createVideos(dbCourse.id, newCourse.videos);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error saving course to Supabase:', error);
+        // Continue with local storage as fallback
+      }
+    }
+
+    // Also save to localStorage as backup
     if (userLoggedIn) {
       const user = getCurrentUser();
       if (user) {
@@ -113,7 +144,7 @@ export default function Home() {
     setShowDashboard(false);
   };
 
-  const handleVideoComplete = (videoId: string) => {
+  const handleVideoComplete = async (videoId: string) => {
     if (!progress || !activeCourse) return;
 
     const isAlreadyCompleted = progress.completedVideoIds.includes(videoId);
@@ -128,6 +159,18 @@ export default function Home() {
     };
 
     setProgress(newProgress);
+
+    // Save to Supabase if logged in
+    if (userLoggedIn && !isAlreadyCompleted) {
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser) {
+          await markVideoComplete(supabaseUser.id, activeCourse.id, videoId);
+        }
+      } catch (error) {
+        console.error('Error saving progress to Supabase:', error);
+      }
+    }
 
     // Auto-unlock next video
     const currentIndex = activeCourse.videos.findIndex(v => v.id === videoId);
