@@ -30,11 +30,29 @@ export default function Home() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check if supabase is available
+        if (!supabase) {
+          console.log('Supabase not available, using local auth');
+          const loggedIn = isLoggedIn();
+          setUserLoggedIn(loggedIn);
+          setShowDashboard(loggedIn);
+          setIsLoading(false);
+          return;
+        }
+
         // Check Supabase auth first
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (session) {
+        console.log('Auth check - Session:', !!session, 'Error:', error);
+
+        if (error) {
+          console.error('Supabase auth error:', error);
+          const loggedIn = isLoggedIn();
+          setUserLoggedIn(loggedIn);
+          setShowDashboard(loggedIn);
+        } else if (session) {
           // Supabase user logged in
+          console.log('Supabase user logged in:', session.user.id);
           setUserLoggedIn(true);
           setShowDashboard(true);
         } else {
@@ -44,10 +62,14 @@ export default function Home() {
           setShowDashboard(loggedIn);
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
-        const loggedIn = isLoggedIn();
-        setUserLoggedIn(loggedIn);
-        setShowDashboard(loggedIn);
+        console.error('Unexpected error checking auth:', error);
+        try {
+          const loggedIn = isLoggedIn();
+          setUserLoggedIn(loggedIn);
+          setShowDashboard(loggedIn);
+        } catch (err) {
+          console.error('Error checking local auth:', err);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -56,20 +78,25 @@ export default function Home() {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        setUserLoggedIn(true);
-        setShowDashboard(true);
-      } else {
-        const loggedIn = isLoggedIn();
-        setUserLoggedIn(loggedIn);
-        if (!loggedIn) {
-          setShowDashboard(false);
+    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state changed:', event, !!session);
+        if (session) {
+          setUserLoggedIn(true);
+          setShowDashboard(true);
+        } else {
+          const loggedIn = isLoggedIn();
+          setUserLoggedIn(loggedIn);
+          if (!loggedIn) {
+            setShowDashboard(false);
+          }
         }
-      }
-    });
+      });
 
-    return () => subscription?.unsubscribe();
+      return () => subscription?.unsubscribe();
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+    }
   }, []);
 
   const handleLoginSuccess = () => {

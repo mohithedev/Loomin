@@ -1,35 +1,52 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function AuthCallback() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the session from the callback
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Auth callback started...');
 
-        if (error) {
-          console.error('Auth error:', error);
-          router.push('/');
+        // Get the session from the callback
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        console.log('Session:', session);
+        console.log('Session error:', sessionError);
+
+        if (sessionError) {
+          console.error('Auth error:', sessionError);
+          setError(sessionError.message);
+          setTimeout(() => router.push('/'), 2000);
           return;
         }
 
         if (session) {
+          console.log('User logged in:', session.user);
+          
           // Create profile if it doesn't exist
           const user = session.user;
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
 
+          console.log('Profile check result:', existingProfile, profileError);
+
+          if (!existingProfile && profileError?.code !== 'PGRST116') {
+            // Error other than not found
+            console.error('Profile error:', profileError);
+          }
+
           if (!existingProfile) {
-            await supabase
+            console.log('Creating new profile...');
+            const { error: insertError } = await supabase
               .from('profiles')
               .insert([
                 {
@@ -38,21 +55,41 @@ export default function AuthCallback() {
                   full_name: user.user_metadata?.full_name || '',
                 },
               ]);
+
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+            } else {
+              console.log('Profile created successfully');
+            }
           }
 
-          // Redirect to dashboard
+          console.log('Redirecting to home...');
+          // Redirect to home (dashboard will show automatically)
           router.push('/');
         } else {
+          console.log('No session found, redirecting to home');
           router.push('/');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error in auth callback:', error);
-        router.push('/');
+        setError(error.message || 'An error occurred');
+        setTimeout(() => router.push('/'), 2000);
       }
     };
 
     handleAuthCallback();
   }, [router]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-primary">
+        <div className="text-center space-y-4">
+          <p className="text-red-500 font-semibold">Error: {error}</p>
+          <p className="text-secondary">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-primary">
