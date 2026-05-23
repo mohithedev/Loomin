@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../services/auth';
-import { motion } from 'framer-motion';
-import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Zap, PlusCircle, Menu, X, Moon, Sun, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, Play, Clock, TrendingUp, LogOut, Layout as LayoutIcon, CheckCircle, Clock as ClockIcon, Zap, PlusCircle, Menu, X, Moon, Sun, Star, Youtube, Loader2, AlertCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { ThemeMode } from '../types';
 import Link from 'next/link';
 import { getRemainingPlaylists } from '../services/plans';
+import { extractPlaylistId, fetchPlaylistData } from '../services/youtube';
+import { createCourse, createVideos } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -19,6 +22,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [activeNav, setActiveNav] = useState<'all' | 'in-progress' | 'completed'>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const nextTheme: Record<ThemeMode, ThemeMode> = {
     light: 'dark',
@@ -36,6 +43,72 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       setCourses(savedCourses ? JSON.parse(savedCourses) : []);
     }
   }, []);
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      // Validate URL
+      const playlistId = extractPlaylistId(url);
+      if (!playlistId) {
+        setError('Invalid YouTube playlist URL. Please make sure it contains "list=...".');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch playlist data
+      const courseData = await fetchPlaylistData(playlistId);
+      
+      // Get Supabase user
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      
+      if (supabaseUser && courseData) {
+        // Save course to Supabase
+        const newCourse = await createCourse(supabaseUser.id, {
+          title: courseData.title,
+          description: courseData.description,
+          thumbnail: courseData.thumbnail,
+          playlistId: courseData.playlistId,
+        });
+
+        // Save videos to Supabase
+        if (newCourse && courseData.videos) {
+          await createVideos(newCourse.id, courseData.videos);
+        }
+
+        // Also save to localStorage
+        const newLocalCourse = {
+          id: newCourse.id,
+          ...courseData,
+          progress: {
+            courseId: newCourse.id,
+            completedVideoIds: [],
+            lastWatchedVideoId: courseData.videos?.[0]?.id || '',
+            lastUpdated: Date.now(),
+          },
+        };
+
+        const userCoursesKey = `user_courses_${user.id}`;
+        const existingCourses = localStorage.getItem(userCoursesKey);
+        const allCourses = existingCourses ? JSON.parse(existingCourses) : [];
+        allCourses.push(newLocalCourse);
+        localStorage.setItem(userCoursesKey, JSON.stringify(allCourses));
+
+        // Update state
+        setCourses(allCourses);
+
+        // Close modal and reset form
+        setShowCreateModal(false);
+        setUrl('');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create course. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -204,7 +277,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 )}
 
                 {/* Create Button */}
-                <button className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all border border-accent">
+                <button 
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-semibold transition-all border border-accent"
+                >
                   <PlusCircle className="w-4 h-4" />
                   <span>Create</span>
                 </button>
@@ -319,6 +395,95 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           )}
         </div>
         </div>
+
+        {/* Create Course Modal */}
+        <AnimatePresence>
+          {showCreateModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreateModal(false)}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-primary border border-primary rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl space-y-6"
+              >
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold tracking-tight">Create New Course</h2>
+                  <p className="text-secondary">Paste a YouTube playlist link to create a structured course</p>
+                </div>
+
+                <form onSubmit={handleCreateCourse} className="space-y-4">
+                  {/* URL Input */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-secondary">Playlist URL</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-4 text-secondary">
+                        <Youtube className="w-5 h-5" />
+                      </div>
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="Paste YouTube playlist link here..."
+                        className="w-full pl-12 pr-4 py-3 bg-secondary border border-primary rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg"
+                    >
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-500">{error}</p>
+                    </motion.div>
+                  )}
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        setUrl('');
+                        setError(null);
+                      }}
+                      className="flex-1 px-6 py-3 bg-secondary/30 hover:bg-secondary/50 text-primary rounded-lg font-semibold transition-all border border-primary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading || !url.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Creating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle className="w-4 h-4" />
+                          <span>Create Course</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
