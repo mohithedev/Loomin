@@ -25,11 +25,51 @@ export default function Home() {
   const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loggedIn = isLoggedIn();
-    setUserLoggedIn(loggedIn);
-    setShowDashboard(loggedIn);
+    const checkAuth = async () => {
+      try {
+        // Check Supabase auth first
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Supabase user logged in
+          setUserLoggedIn(true);
+          setShowDashboard(true);
+        } else {
+          // Check local auth as fallback
+          const loggedIn = isLoggedIn();
+          setUserLoggedIn(loggedIn);
+          setShowDashboard(loggedIn);
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        const loggedIn = isLoggedIn();
+        setUserLoggedIn(loggedIn);
+        setShowDashboard(loggedIn);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUserLoggedIn(true);
+        setShowDashboard(true);
+      } else {
+        const loggedIn = isLoggedIn();
+        setUserLoggedIn(loggedIn);
+        if (!loggedIn) {
+          setShowDashboard(false);
+        }
+      }
+    });
+
+    return () => subscription?.unsubscribe();
   }, []);
 
   const handleLoginSuccess = () => {
@@ -37,7 +77,18 @@ export default function Home() {
     setShowDashboard(true);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Logout from Supabase if logged in
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Error signing out from Supabase:', error);
+    }
+    
+    // Logout from local auth
     logout();
     setUserLoggedIn(false);
     setShowDashboard(false);
@@ -179,6 +230,17 @@ export default function Home() {
       setCurrentVideoId(nextVideoId);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-primary">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-secondary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (showDashboard && userLoggedIn && !activeCourse) {
     return <Dashboard onLogout={handleLogout} />;
