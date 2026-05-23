@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { X, Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { login, signUp, googleLogin, ssoLogin, requestPasswordReset } from '../services/auth';
+import { supabase } from '../lib/supabase';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -46,7 +47,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
         }
       } else {
         const result = signUp(email, name, password);
-        if (result.success) {
+        if (result.success && result.user) {
+          // Create Supabase profile for new user
+          try {
+            await supabase
+              .from('profiles')
+              .insert([
+                {
+                  id: result.user.id,
+                  username: email.split('@')[0],
+                  full_name: name,
+                },
+              ]);
+          } catch (supabaseError) {
+            console.error('Error creating Supabase profile:', supabaseError);
+            // Continue even if profile creation fails
+          }
+
           setMessage({ type: 'success', text: result.message });
           setTimeout(() => {
             onSuccess?.();

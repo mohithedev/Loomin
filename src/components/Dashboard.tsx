@@ -65,7 +65,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       const { data: { user: supabaseUser } } = await supabase.auth.getUser();
       
       if (supabaseUser && courseData) {
-        // Save course to Supabase
+        // First, ensure profile exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', supabaseUser.id)
+          .single();
+
+        // If no profile exists, create one
+        if (!existingProfile) {
+          await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: supabaseUser.id,
+                username: supabaseUser.email?.split('@')[0],
+                full_name: supabaseUser.user_metadata?.full_name || '',
+              },
+            ]);
+        }
+
+        // Now save course to Supabase
         const newCourse = await createCourse(supabaseUser.id, {
           title: courseData.title,
           description: courseData.description,
