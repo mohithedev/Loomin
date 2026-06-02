@@ -1,10 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disable strict mode to prevent double-renders
   images: {
-    unoptimized: true,
+    unoptimized: false, // Enable Next.js image optimization
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.ytimg.com' },
+      { protocol: 'https', hostname: '**.googleapis.com' },
+    ],
   },
-  transpilePackages: ['motion', 'framer-motion', 'lucide-react'],
+  transpilePackages: ['framer-motion', 'lucide-react'],
+  productionBrowserSourceMaps: false, // Reduce bundle size
+  compress: true,
+  poweredByHeader: false,
 };
 
 module.exports = nextConfig;

@@ -54,7 +54,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setLoading(false);
   };
 
-  // Track video progress every second
+  // Track video progress every 2 seconds (reduced from 1s for better performance)
   useEffect(() => {
     if (!player || loading) return;
 
@@ -65,7 +65,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const progress = (currentTime / duration) * 100;
         setVideoProgress(Math.min(progress, 100));
       }
-    }, 1000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [player, loading]);
