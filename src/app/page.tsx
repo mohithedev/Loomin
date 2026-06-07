@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Layout } from '../components/Layout';
 import { Hero } from '../components/Hero';
 import { CoursePreview } from '../components/CoursePreview';
@@ -79,7 +80,7 @@ export default function Home() {
 
     // Listen for auth changes
     try {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
         console.log('Auth state changed:', event, !!session);
         if (session) {
           setUserLoggedIn(true);
