@@ -81,6 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 id: supabaseUser.id,
                 username: supabaseUser.email?.split('@')[0],
                 full_name: supabaseUser.user_metadata?.full_name || '',
+                email: supabaseUser.email || null,
               },
             ]);
         }

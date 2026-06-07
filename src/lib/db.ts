@@ -183,7 +183,7 @@ export const updateVideoProgress = async (
 
 export const createProfile = async (
   userId: string,
-  profileData?: { username?: string; fullName?: string }
+  profileData?: { username?: string; fullName?: string; email?: string }
 ) => {
   const { data, error } = await supabase
     .from('profiles')
@@ -192,6 +192,7 @@ export const createProfile = async (
         id: userId,
         username: profileData?.username,
         full_name: profileData?.fullName,
+        email: profileData?.email || null,
       },
     ])
     .select()
@@ -214,7 +215,7 @@ export const getProfile = async (userId: string) => {
 
 export const updateProfile = async (
   userId: string,
-  profileData: { username?: string; fullName?: string; avatarUrl?: string }
+  profileData: { username?: string; fullName?: string; avatarUrl?: string; email?: string }
 ) => {
   const { data, error } = await supabase
     .from('profiles')
@@ -222,6 +223,7 @@ export const updateProfile = async (
       username: profileData.username,
       full_name: profileData.fullName,
       avatar_url: profileData.avatarUrl,
+      email: profileData.email,
     })
     .eq('id', userId)
     .select()

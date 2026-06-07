@@ -71,20 +71,23 @@ export default function AuthCallback() {
 
           if (!existingProfile) {
             console.log('Creating new profile...');
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert([
-                {
-                  id: user.id,
-                  username: user.email?.split('@')[0],
-                  full_name: user.user_metadata?.full_name || '',
-                },
-              ]);
+            try {
+              const { data: created } = await supabase
+                .from('profiles')
+                .insert([
+                  {
+                    id: user.id,
+                    username: user.email?.split('@')[0],
+                    full_name: user.user_metadata?.full_name || '',
+                    email: user.email || null,
+                  },
+                ])
+                .select()
+                .single();
 
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-            } else {
-              console.log('Profile created successfully');
+              console.log('Profile created successfully:', created);
+            } catch (err) {
+              console.error('Error creating profile:', err);
             }
           }
 

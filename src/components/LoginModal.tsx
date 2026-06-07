@@ -6,6 +6,7 @@ import { X, Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle, ArrowLeft, Loader
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabaseSignUp, supabaseLogin, supabaseGoogleLogin } from '../lib/supabaseAuth';
 import { supabase } from '../lib/supabase';
+import { createProfile } from '../lib/db';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -70,16 +71,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
       } else {
         const result = await supabaseSignUp(email, password, name);
         if (result.success && result.user) {
-          // Create profile for new user
-          await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: result.user.id,
-                username: email.split('@')[0],
-                full_name: name,
-              },
-            ]);
+          // Create profile for new user (store email)
+          await createProfile(result.user.id, {
+            username: email.split('@')[0],
+            fullName: name,
+            email,
+          });
 
           setMessage({ type: 'success', text: 'Account created! Please check your email to confirm.' });
           setTimeout(() => {
