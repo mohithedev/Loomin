@@ -91,6 +91,22 @@ export default function AuthCallback() {
             }
           }
 
+          // Persist a minimal local user so the app's local flows (Dashboard, local auth) work
+          try {
+            const localUser = {
+              id: user.id,
+              email: user.email || null,
+              name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+              plan: 'free',
+              provider: 'google',
+              createdAt: Date.now(),
+            };
+            window.localStorage.setItem('loomin_current_user', JSON.stringify(localUser));
+            console.log('Wrote loomin_current_user to localStorage');
+          } catch (err) {
+            console.warn('Failed to write local user to localStorage:', err);
+          }
+
           console.log('Prepared debug info, not redirecting immediately to allow inspection.');
           // Wait for user to inspect debug info, then redirect
           // Auto-redirect in 6s as a fallback
