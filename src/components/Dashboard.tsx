@@ -9,7 +9,7 @@ import { ThemeMode } from '../types';
 import Link from 'next/link';
 import { getRemainingPlaylists } from '../services/plans';
 import { extractPlaylistId, fetchPlaylistData } from '../services/youtube';
-import { createCourse, createVideos } from '../lib/db';
+import { createCourse, createVideos, getUserCourses } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
 interface DashboardProps {
