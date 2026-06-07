@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Zap, Check } from 'lucide-react';
+import { X, Zap, Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -21,11 +22,40 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
   const handleUpgrade = async () => {
     setIsLoading(true);
-    // Simulate Stripe redirect
-    setTimeout(() => {
-      onUpgrade();
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user || !user.email) {
+        alert('Please sign in first');
+        setIsLoading(false);
+        return;
+      }
+
+      // Call our checkout endpoint
+      const response = await fetch('/api/lemonsqueezy/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.checkoutUrl) {
+        // Redirect to Lemonsqueezy checkout
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert('Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const reasons: Record<string, { title: string; message: string; icon: React.ReactNode }> = {
