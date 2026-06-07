@@ -13,18 +13,33 @@ export default function AuthCallback() {
       try {
         console.log('Auth callback started...');
 
-        // Get the session from the callback
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        console.log('Session:', session);
-        console.log('Session error:', sessionError);
-
-        if (sessionError) {
-          console.error('Auth error:', sessionError);
-          setError(sessionError.message);
-          setTimeout(() => router.push('/'), 2000);
-          return;
+        // Try to extract a session from the URL first (OAuth flow)
+        let session = null;
+        try {
+          const fromUrl = await supabase.auth.getSessionFromUrl();
+          session = fromUrl.data?.session ?? null;
+          if (fromUrl.error) {
+            console.warn('getSessionFromUrl error (might be fine):', fromUrl.error);
+          } else {
+            console.log('Session extracted from URL:', session);
+          }
+        } catch (err) {
+          console.warn('getSessionFromUrl threw:', err);
         }
+
+        // Fallback to getSession (in case session was saved elsewhere)
+        if (!session) {
+          const { data: sessData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error('Auth error (getSession):', sessionError);
+            setError(sessionError.message);
+            setTimeout(() => router.push('/'), 2000);
+            return;
+          }
+          session = sessData.session;
+        }
+
+        console.log('Final session value:', session);
 
         if (session) {
           console.log('User logged in:', session.user);
