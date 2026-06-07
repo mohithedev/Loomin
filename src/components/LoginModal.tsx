@@ -60,6 +60,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             }
           }
 
+          // Persist minimal local user for Dashboard compatibility
+          try {
+            const localUser = {
+              id: result.user?.id,
+              email: result.user?.email || email,
+              name: result.user?.user_metadata?.full_name || email.split('@')[0],
+              plan: 'free',
+              provider: result.user?.app_metadata?.provider || 'email',
+              createdAt: Date.now(),
+            };
+            window.localStorage.setItem('loomin_current_user', JSON.stringify(localUser));
+          } catch (err) {
+            console.warn('Failed to write local current user during login:', err);
+          }
+
           setTimeout(() => {
             onSuccess?.();
             onClose();
@@ -77,6 +92,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             fullName: name,
             email,
           });
+
+          // Persist minimal local user for Dashboard compatibility
+          try {
+            const localUser = {
+              id: result.user.id,
+              email: result.user.email || email,
+              name: name || email.split('@')[0],
+              plan: 'free',
+              provider: 'email',
+              createdAt: Date.now(),
+            };
+            window.localStorage.setItem('loomin_current_user', JSON.stringify(localUser));
+          } catch (err) {
+            console.warn('Failed to write local current user during signup:', err);
+          }
 
           setMessage({ type: 'success', text: 'Account created! Please check your email to confirm.' });
           setTimeout(() => {
