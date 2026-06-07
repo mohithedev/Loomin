@@ -34,14 +34,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   };
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    
-    // Load user's courses from localStorage
-    if (currentUser) {
-      const savedCourses = localStorage.getItem(`user_courses_${currentUser.id}`);
-      setCourses(savedCourses ? JSON.parse(savedCourses) : []);
-    }
+    const loadUserAndCourses = async () => {
+      try {
+        // Try Supabase first
+        const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error('Error fetching supabase user in Dashboard:', error);
+        }
+
+        if (supabaseUser) {
+          // Fetch profile from DB
+          try {
+            const profile = await (async () => {
+              const { data } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', supabaseUser.id)
+                .single();
+              return data;
+            })();
+
+            const current = {
+              id: supabaseUser.id,
+              email: supabaseUser.email,
+              name: profile?.full_name || profile?.username || supabaseUser.email?.split('@')[0] || '',
+              plan: profile?.plan || 'free',
+            };
+
+            setUser(current);
+
+            // Load courses from Supabase
+            try {
+              const userCourses = await getUserCourses(supabaseUser.id);
+              setCourses(userCourses || []);
+            } catch (err) {
+              console.error('Failed to load user courses from DB:', err);
+              // fallback to localStorage
+              const savedCourses = localStorage.getItem(`user_courses_${supabaseUser.id}`);
+              setCourses(savedCourses ? JSON.parse(savedCourses) : []);
+            }
+            return;
+          } catch (err) {
+            console.error('Error loading profile/courses:', err);
+          }
+        }
+
+        // Fallback to local auth (existing localStorage-based system)
+        const currentUser = getCurrentUser();
+        setUser(currentUser);
+        if (currentUser) {
+          const savedCourses = localStorage.getItem(`user_courses_${currentUser.id}`);
+          setCourses(savedCourses ? JSON.parse(savedCourses) : []);
+        }
+      } catch (err) {
+        console.error('Unexpected error loading Dashboard user:', err);
+      }
+    };
+
+    loadUserAndCourses();
   }, []);
 
   const handleCreateCourse = async (e: React.FormEvent) => {
